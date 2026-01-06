@@ -10,7 +10,7 @@ import path from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 import { userAgent } from '../configs/constant.js';
-
+import delay from 'delay';
 const generateVerifyFp = async()=> {
     var e = Date.now();
     var t = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".split(
@@ -51,6 +51,59 @@ const signUrl = async (PARAMS,firstUrl)=>{
     const unsignedUrl = `${firstUrl}${qs}`;
     const xGnarly  = encode(qs,"",userAgent)
     let signed_url = `${unsignedUrl}&X-Gnarly=${xGnarly}`
+    return signed_url
+}
+const signUrlKeyword = async (PARAMS,firstUrl)=>{
+function strictEncode(str) {
+  return encodeURIComponent(str)
+    .replace(/\(/g, "%28")
+    .replace(/\)/g, "%29");
+}
+
+/**
+ * Build FULL URL TikTok search
+ * @param {string} baseUrl
+ * @param {object} params
+ */
+  function buildTikTokSearchUrl(params) {
+    const query = Object.entries(params)
+      .map(([key, value]) => {
+        if (value === undefined || value === null) {
+          return `${key}=`;
+        }
+      if (key=='msToken') {
+        return `${key}=${String(value)}`;
+      }
+        // TikTok yêu cầu web_search_code là encoded JSON
+        if (key === "web_search_code" && typeof value === "object") {
+          return `${key}=${encodeURIComponent(JSON.stringify(value))}`;
+        }
+
+        // các param còn lại encode strict
+        return `${key}=${strictEncode(String(value))}`;
+      })
+      .join("&");
+
+    return query;
+  }
+    const qs = buildTikTokSearchUrl(PARAMS)
+    const unsignedUrl = `${firstUrl}${qs}`;
+    const xGnarly  = encode(qs,"",userAgent)
+    let signed_url = `${unsignedUrl}&X-Gnarly=${xGnarly}`
+    return signed_url
+}
+const signUrlByBrowser = async ({PARAMS,firstUrl,page})=>{
+    const qsObject = new URLSearchParams(PARAMS) ;
+    const qs = qsObject.toString();
+    let userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    const unsignedUrl = `${firstUrl}${qs}`;
+    let verify_fp = await generateVerifyFp();
+    let newUrl = unsignedUrl + "&verifyFp=" + verify_fp;
+    let token = await page.evaluate(`generateSignature("${newUrl}")`);
+    let signed_url = newUrl + "&_signature=" + token;
+    let queryString = new URL(signed_url).searchParams.toString();
+    let bogus = await page.evaluate(`generateBogus("${queryString}","${userAgent}")`);
+    signed_url += "&X-Bogus=" + bogus;  
     return signed_url
 }
 const pageSign = async({page})=>{
@@ -158,7 +211,20 @@ function extractJsonFromHtml(html, key) {
     return null;
   }
 }
+const randomChar = (char, range) => {
+  let chars = ""
+  for (let i = 0; i < range; i++) {
+    chars += char[Math.floor(Math.random() * char.length)]
+  }
+  return chars
+}
 
+const generateOdinId = () => {
+  // Generate 19-digit number
+  const prefix = "7" // Common prefix for OdinId
+  const random = randomChar("0123456789", 18)
+  return `${prefix}${random}`
+}
 export {
   extractJsonFromHtml,
   sanitizeCookies,
@@ -169,5 +235,8 @@ export {
   signUrl,
   generateVerifyFp,
   axiosApiLogin,
+  signUrlByBrowser,
+  signUrlKeyword,
+  generateOdinId
 }
 

@@ -81,7 +81,7 @@ export const  get_source = async(job)=>{
                 };
             const firstUrl = `https://www.tiktok.com/api/post/item_list/?`
             let signed_url = await signUrl(PARAMS,firstUrl)
-
+            console.log(signed_url)
             let random_index = Math.floor(Math.random() * proxyList.length);
             let proxyRandom = proxyList[random_index].proxy.replace('http://','').split("@").flatMap((item)=>item.split(':'))
             let proxy ={
@@ -115,10 +115,11 @@ export const  get_source = async(job)=>{
                 
             }); 
             var pageRequest = await browserRequest.newPage({});
-                await pageRequest.authenticate({
+            await pageRequest.authenticate({
                 username: proxy.username,
                 password: proxy.password,
             });
+            var data = []
             for(let j=0;j<5;j++){
                 await delay(1000)    
                 let random_cookie = Math.floor(Math.random() * cookieSource.length);
@@ -129,7 +130,7 @@ export const  get_source = async(job)=>{
                     const text = await pageRequest.evaluate(()=>{
                         return document.querySelector("body > pre")?.textContent
                     });
-                    var data = JSON.parse(text)
+                    data = JSON.parse(text)
                     
                     if(data.itemList!=undefined){
                         logger.info(`${job.data.source}|${data.itemList.length}|${cursor}`)
@@ -155,7 +156,7 @@ export const  get_source = async(job)=>{
                         conditionBreak = true
                     }         
             }
-            if(data.hasMore==false||conditionBreak==true){
+            if(data.hasMore==false||conditionBreak==true||data.length==0){
                 break;
             }  
             if(cursor==0){

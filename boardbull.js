@@ -14,6 +14,7 @@ const queueCommentTTBig = new Queue(nameBull.TTCommentBig,redisLocal);
 const queueIdPostTT = new Queue(nameBull.TTIdPost,redisLocal);
 const queueCommentTT = new Queue(nameBull.TTComment, redisLocal);
 const insertGetUrl = new Queue(nameBull.InsertBuzzes, redisLocal);
+const queueGetCookie = new Queue('getCookieFromBrowser', redisLocal);
 
 const serverAdapter = new ExpressAdapter();
 createBullBoard({
@@ -27,6 +28,7 @@ createBullBoard({
         new BullAdapter(queueCommentTT),
         new BullAdapter(queueCommentTTBig),
         new BullAdapter(insertGetUrl),
+         new BullAdapter(queueGetCookie),
 
     ]
     ,

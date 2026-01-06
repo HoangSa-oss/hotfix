@@ -2,12 +2,26 @@ import os from 'os'
 import cluster from 'cluster';
 import { redisLocal, redisMaster,nameBull } from "./configs/constant.js"
 import { search_keyword } from "./src/tiktok/keyword/index.js";
+import { search_keyword_sign_browser } from './src/tiktok/keywordSignBrowser/index.js';
+import { search_keyword_DOM } from './src/tiktok/keywordDOM/index.js';
 import  TiktokCheckModel  from "./mongodb/tiktokCheck/tiktokCheck.js";
 import { get_source } from "./src/tiktok/source/index.js";
 import {connectDB} from './mongodb/connect.js'
 import Queue from 'bull'
 import { get_hashtag } from './src/tiktok/hashtag/index.js';
-import { work_post } from './src/tiktok/post/index.js';
+import { work_post, work_post_short } from './src/tiktok/post/index.js';
+import { work_post_DOM } from './src/tiktok/postDOM/index.js';
+import proxyList from './resource/proxy.json'assert { type: 'json' }
+
+import delay from 'delay';
+
+
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import  {executablePath} from 'puppeteer'
+puppeteer.use(StealthPlugin());
+import { pageSign } from './utils/tiktok.js';
+import { signUrlByBrowser } from './utils/tiktok.js';
 export const run = async()=>{
     try {
         let sumQueued = 3
@@ -17,9 +31,9 @@ export const run = async()=>{
         const queueIdPostTT = new Queue(nameBull.TTIdPost,redisLocal);
         const queueCommentTT = new Queue(nameBull.TTComment, redisLocal);   
         const insertGetUrl = new Queue(nameBull.InsertBuzzes, redisLocal);
-        queueKeywordTT.process(3,async(job,done)=>{
+        queueKeywordTT.process(1,async(job,done)=>{
             if(job.data.typeCrawl=="keyword"){
-                const result = await search_keyword(job)
+                const result = await search_keyword_DOM(job)
                 if(result.data.length>150){
                     await Promise.all(
                         result.data.map(async(x)=>{
@@ -48,6 +62,11 @@ export const run = async()=>{
                     )    
                     if(job.data.addQueued<sumQueued){
                         queueKeywordTT.add({...job.data,addQueued:job.data.addQueued+1})
+                    }
+                }
+                if(result.status=='error'){
+                    if(result?.message=='No signature function found'){
+                        process.exit(1); 
                     }
                 }
             }
@@ -91,11 +110,15 @@ export const run = async()=>{
             }
             done()
         })
-        queueIdPostTT.process(20,async(job,done)=>{
-            const result = await work_post(job)
-            if(result.status=='error'){
-                queueIdPostTT.add(job.data)
+        queueIdPostTT.process(10,async(job,done)=>{
+            if(job.data.typeCrawl == 'short'){
+                const result = await work_post_short(job)
+            }else{
+                const result = await work_post_DOM(job)
             }
+            // if(result.status=='error'){
+            //     queueIdPostTT.add(job.data)
+            // }
             done()
         })
     }catch(error){
@@ -103,17 +126,22 @@ export const run = async()=>{
     }
 }
 const numWorkers =  os.cpus().length
+
 if (cluster.isPrimary) {
+
     console.log(`🧠 Master PID: ${process.pid}`);
     for (let i = 0; i < numWorkers; i++) {
-    cluster.fork({ PROFILE_DIR: i });
-}
+        cluster.fork();
+    }
+    cluster.on("exit", (worker, code, signal) => {
+        cluster.fork()
+    });
 } else {
-    const profileDir = process.env.PROFILE_DIR;
-    console.log(`🚀 Worker ${process.pid} dùng profile: ${profileDir}`);
-
-    (async () => {
+    try {
         await run()
-    })();
+    } catch (error) {
+        console.error("❌ Worker lỗi:", error);
+        process.exit(1); 
+    }
 }
 // }
