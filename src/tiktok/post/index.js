@@ -56,9 +56,8 @@ export const  work_post = async(job)=>{
         
         const firstUrl = `https://www.tiktok.com/api/item/detail/?`;
         var signed_url = await signUrl(PARAMS,firstUrl)
-        console.log(signed_url)
         let data = []
-        for(let j=0;j<10;j++){
+        for(let j=0;j<30;j++){
             let random_index = Math.floor(Math.random() * proxyList.length);
             let proxy = proxyList[random_index]
             let random_index_cookie_array = Math.floor(Math.random() * cookieString.length);

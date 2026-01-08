@@ -13,7 +13,7 @@ import {v4 as uuidv4}from 'uuid'
     //theo dinh dang  yyyy/mm/dd
     //neu lay toi hien tai thi cong them 1 ngay
                                     //yyyy/mm/dd
-    const timeStart = parseInt(moment('2025/12/01').format('X'))
+    const timeStart = parseInt(moment('2025/01/01').format('X'))
     const timeEnd = parseInt(moment('2026/01/30').format('X'))
     const queueKeywordYTB = new Queue(nameBull.YTBKeyword,redisLocal);
     const queueSourceYTB = new Queue(nameBull.YTBSource,redisLocal);
@@ -41,7 +41,7 @@ import {v4 as uuidv4}from 'uuid'
 
             // await queueKeywordYTB.add({keyword:x.trim(),typeCrawl:"keyword",timeStart:new Date(timeStart * 1000).toISOString(),timeEnd:new Date(timeEnd * 1000).toISOString(),uniqueId})
         }
-        if((x.includes('tiktok')&&x.includes('video')==true)||(x.includes('http')&&x.includes('photo'))||x.includes('http')||(x.includes('tiktok')&&x.includes('video')==true)||(x.includes('tiktok')&&x.includes('photo')==true)){
+        if((x.includes('tiktok')&&x.includes('video')==true)||(x.includes('http')&&x.includes('photo'))){
             if(x.includes('vt.tiktok.com')||x.includes('vm.tiktok.com')){
                 await queueIdPostTT.add({url:x.trim(),typeCrawl:"short" })
             }else{

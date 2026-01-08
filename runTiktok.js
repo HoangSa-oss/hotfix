@@ -2,7 +2,6 @@ import os from 'os'
 import cluster from 'cluster';
 import { redisLocal, redisMaster,nameBull } from "./configs/constant.js"
 import { search_keyword } from "./src/tiktok/keyword/index.js";
-import { search_keyword_sign_browser } from './src/tiktok/keywordSignBrowser/index.js';
 import { search_keyword_DOM } from './src/tiktok/keywordDOM/index.js';
 import  TiktokCheckModel  from "./mongodb/tiktokCheck/tiktokCheck.js";
 import { get_source } from "./src/tiktok/source/index.js";
@@ -12,9 +11,8 @@ import { get_hashtag } from './src/tiktok/hashtag/index.js';
 import { work_post, work_post_short } from './src/tiktok/post/index.js';
 import { work_post_DOM } from './src/tiktok/postDOM/index.js';
 import proxyList from './resource/proxy.json'assert { type: 'json' }
-
+import { combineSourceDOM } from './src/tiktok/crawlapiauthorDOM/combine.js';
 import delay from 'delay';
-
 
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
@@ -31,47 +29,47 @@ export const run = async()=>{
         const queueIdPostTT = new Queue(nameBull.TTIdPost,redisLocal);
         const queueCommentTT = new Queue(nameBull.TTComment, redisLocal);   
         const insertGetUrl = new Queue(nameBull.InsertBuzzes, redisLocal);
-        queueKeywordTT.process(1,async(job,done)=>{
-            if(job.data.typeCrawl=="keyword"){
-                const result = await search_keyword_DOM(job)
-                if(result.data.length>150){
-                    await Promise.all(
-                        result.data.map(async(x)=>{
-                            if(x.date>=job.data.timeStart&&x.date<=job.data.timeEnd){
-                                const checkUrlExist = await TiktokCheckModel.findOne({url:x.url,uniqueId:job.data.uniqueId})
-                                if(checkUrlExist==null){
-                                    await queueIdPostTT.add({...x})
-                                    await TiktokCheckModel.create({...x,uniqueId:job.data.uniqueId})
+        queueKeywordTT.process(10,async(job,done)=>{
+            // if(job.data.typeCrawl=="keyword"){
+            //     const result = await search_keyword_DOM(job)
+            //     if(result.data.length>150){
+            //         await Promise.all(
+            //             result.data.map(async(x)=>{
+            //                 if(x.date>=job.data.timeStart&&x.date<=job.data.timeEnd){
+            //                     const checkUrlExist = await TiktokCheckModel.findOne({url:x.url,uniqueId:job.data.uniqueId})
+            //                     if(checkUrlExist==null){
+            //                         await queueIdPostTT.add({...x})
+            //                         await TiktokCheckModel.create({...x,uniqueId:job.data.uniqueId})
                                     
-                                }
-                            } 
-                        })
-                    )    
-                }else{
-                    await Promise.all(
-                        result.data.map(async(x)=>{
-                            if(x.date>=job.data.timeStart&&x.date<=job.data.timeEnd){
-                                const checkUrlExist = await TiktokCheckModel.findOne({url:x.url,uniqueId:job.data.uniqueId})
-                                if(checkUrlExist==null){
-                                    await queueIdPostTT.add({...x})
-                                    await TiktokCheckModel.create({...x,uniqueId:job.data.uniqueId})
+            //                     }
+            //                 } 
+            //             })
+            //         )    
+            //     }else{
+            //         await Promise.all(
+            //             result.data.map(async(x)=>{
+            //                 if(x.date>=job.data.timeStart&&x.date<=job.data.timeEnd){
+            //                     const checkUrlExist = await TiktokCheckModel.findOne({url:x.url,uniqueId:job.data.uniqueId})
+            //                     if(checkUrlExist==null){
+            //                         await queueIdPostTT.add({...x})
+            //                         await TiktokCheckModel.create({...x,uniqueId:job.data.uniqueId})
                                     
-                                }
-                            } 
-                        })
-                    )    
-                    if(job.data.addQueued<sumQueued){
-                        queueKeywordTT.add({...job.data,addQueued:job.data.addQueued+1})
-                    }
-                }
-                if(result.status=='error'){
-                    if(result?.message=='No signature function found'){
-                        process.exit(1); 
-                    }
-                }
-            }
+            //                     }
+            //                 } 
+            //             })
+            //         )    
+            //         if(job.data.addQueued<sumQueued){
+            //             queueKeywordTT.add({...job.data,addQueued:job.data.addQueued+1})
+            //         }
+            //     }
+            //     if(result.status=='error'){
+            //         if(result?.message=='No signature function found'){
+            //             process.exit(1); 
+            //         }
+            //     }
+            // }
             if(job.data.typeCrawl=="source"){
-                const result = await get_source(job)
+                const result = await combineSourceDOM(job)
                 if(result.status=="ok"){
                     await Promise.all(
                         result.data.map(async(x)=>{
@@ -114,7 +112,7 @@ export const run = async()=>{
             if(job.data.typeCrawl == 'short'){
                 const result = await work_post_short(job)
             }else{
-                const result = await work_post_DOM(job)
+                const result = await work_post(job)
             }
             // if(result.status=='error'){
             //     queueIdPostTT.add(job.data)
@@ -130,7 +128,7 @@ const numWorkers =  os.cpus().length
 if (cluster.isPrimary) {
 
     console.log(`🧠 Master PID: ${process.pid}`);
-    for (let i = 0; i < numWorkers; i++) {
+    for (let i = 0; i <numWorkers; i++) {
         cluster.fork();
     }
     cluster.on("exit", (worker, code, signal) => {

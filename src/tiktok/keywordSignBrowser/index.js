@@ -1,5 +1,5 @@
 import puppeteer from 'puppeteer-extra';
-import { signUrl,axiosApiLogin,generateSearchId, signUrlByBrowser } from '../../../utils/tiktok.js';
+import { signUrl,axiosApiLogin,generateSearchId, signUrlByBrowser,sanitizeCookies } from '../../../utils/tiktok.js';
 import delay from 'delay';
 import { cookieString } from '../../../resource/cookieString.js';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
@@ -7,25 +7,25 @@ puppeteer.use(StealthPlugin());
 import proxyList from '../../../resource/proxy.json'assert { type: 'json' }
 import device_id_list from '../../../resource/deviceid.json'assert { type: 'json' }
 import getLogger from '../../../utils/logger.js'
-
-
+import { cookieSource } from '../../../resource/cookieSource.js';
+import { pageSign } from '../../../utils/tiktok.js';
+const logger = getLogger(`tiktok_keyword_sign_browser`)
+import  {executablePath} from 'puppeteer'
+import fs from 'fs'
+import fsp from "fs/promises"; // alias để phân biệt rõ
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 export const  search_keyword_sign_browser =  async (job,pageToSign)=>{
-    const logger = getLogger(`tiktok_keyword_sign_browser`)
-     let browser
-    let page
-    let profilePath
+
     try {
         let data_list_keyword = [] ;
-        try {
             let conditionBreak = 0
             let random_index_device = Math.floor(Math.random() * device_id_list.length);
             let device_id = device_id_list[random_index_device]
             let search_id = generateSearchId()
-            let random_index_cookie_array_page = Math.floor(Math.random() * cookieString.length);
-            var  cookie = cookieString[random_index_cookie_array_page]
+            let cookieRandom = Math.floor(Math.random() * cookieString.length)
 
-            for(let i=0;i<60;i++){
-                await delay(5000)
+            for(let i=0;i<40;i++){
                 const PARAMS = {
                     aid: 1988,
                     app_language: 'en',
@@ -37,7 +37,7 @@ export const  search_keyword_sign_browser =  async (job,pageToSign)=>{
                     browser_version: '5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                     channel: 'tiktok_web',
                     cookie_enabled: true,
-                    count: 12,
+                    count: 20,
                     data_collection_enabled: true,
                     device_id: device_id,
                     device_platform: 'web_pc',
@@ -47,7 +47,7 @@ export const  search_keyword_sign_browser =  async (job,pageToSign)=>{
                     is_fullscreen: false,
                     is_page_visible: true,
                     keyword: job.data.keyword.trim(),
-                    offset: i*12,
+                    offset: i*20,
                     os: 'windows',
                     priority_region: 'VN',
                     referer: '',
@@ -63,12 +63,13 @@ export const  search_keyword_sign_browser =  async (job,pageToSign)=>{
                 const firstUrl = `https://www.tiktok.com/api/search/item/full/?`
                 let signed_url = await signUrlByBrowser({PARAMS,firstUrl,page:pageToSign})   
                 let data_keyword = []
-                for(let j =0;j<4;j++){
+                for(let j =0;j<3;j++){
                     try {
                         let random_index = Math.floor(Math.random() * proxyList.length);
                         let proxy = proxyList[random_index]
-                        let res = await axiosApiLogin(signed_url,proxy,cookie)
+                        let res = await axiosApiLogin(signed_url,proxy,cookieString[cookieRandom])
                         data_keyword = res.data;
+                        console.log(data_keyword.item_list.length)
                         if(data_keyword.item_list!=undefined){
                             break
                         }
@@ -87,12 +88,12 @@ export const  search_keyword_sign_browser =  async (job,pageToSign)=>{
                     data_list_keyword.push(...data_keyword.item_list)
                 }  
                 }
-        } catch (error) {
-            logger.error(`sign|error|${job.data.keyword}|${error}`)
-            console.log(error)
-            return {status:'error',message:error,data:[]}
-        }
-        logger.info(`Done|${job.data.keyword}|${data_list_keyword.length}|${cookie}`)
+        // } catch (error) {
+        //     logger.error(`sign|error|${job.data.keyword}|${error}`)
+        //     console.log(error)
+        //     return {status:'error',message:error,data:[]}
+        // }
+        logger.info(`Done|${job.data.keyword}|${data_list_keyword.length}`)
         let data_return =  data_list_keyword.map((item)=>{
         return {
             url:`https://www.tiktok.com/@${item.author.uniqueId}/video/${item.id}`,
@@ -106,3 +107,4 @@ export const  search_keyword_sign_browser =  async (job,pageToSign)=>{
  
     } 
 }
+

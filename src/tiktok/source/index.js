@@ -78,6 +78,7 @@ export const  get_source = async(job)=>{
                     tz_name: 'Asia/Bangkok',
                     user_is_login: 'true',
                     webcast_language: 'en',
+                    msToken:"krz2az9LtsMyrHKrlc9vzeBp_JsdjGFwdjW24spX5vYLuRrFXXWgDm3k8HVbePpsdIYS0xiKfSWASi7Ve89HpNcBoI7elYy_XPwfZCIiNqRYXjA0e7hJHi0PUt28y1LryH_iF4s0u1qpxjViyuuz7w=="
                 };
             const firstUrl = `https://www.tiktok.com/api/post/item_list/?`
             let signed_url = await signUrl(PARAMS,firstUrl)
@@ -119,6 +120,7 @@ export const  get_source = async(job)=>{
                 username: proxy.username,
                 password: proxy.password,
             });
+            console.log(signed_url)
             var data = []
             for(let j=0;j<5;j++){
                 await delay(1000)    
